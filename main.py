@@ -1,6 +1,7 @@
 import socket
 from pprint import pprint
 import time 
+import urlparse
 
 '''
 *****************************************************
@@ -19,6 +20,20 @@ def login():
             return (fd.read(),'html')
     except IOError:
         return '',''
+
+def verify_login(usermail, password):
+   return 'user'
+
+def login_submit(content):
+    try:
+       usermail = content['usermail'][0]
+       password = content['password'][0]
+       user = verify_login(usermail, password)
+       if user:
+       		return index()
+    except:
+       pass
+    return ' '
 
 def public(path):
     try:
@@ -53,8 +68,6 @@ Handler Functions
 def request_parser(request):
 	parsed_request = {}
         method = request.split("\n")[0]
-        print "method"
-        print method
 	parsed_request["method"] = method.split()[0]
         parsed_request["path"] = method.split()[1]
         parsed_request["protocol"] = method.split()[2]
@@ -63,8 +76,9 @@ def request_parser(request):
             for each_line in header.split("\n")[1:]:
                 key, value = each_line.split(":",1)
                 parsed_request[key] = value
-        except:
-            pass
+        except ValueError:
+            parsed_request['content'] = request.rsplit("\n")[-1]
+	    pass
 	return parsed_request
 
 def gen_header(response):
@@ -81,7 +95,6 @@ def gen_header(response):
 def do_GET(request):
         content = ""
 	path = request['path']
-        print path
         try:
             content, content_type = Routes[path]()
         except KeyError:
@@ -92,19 +105,37 @@ def do_GET(request):
 	else:
 		response = gen_header(404)
 		return response
-        if content_type == 'html':
-            response += "Content-type: text/html\n\n"
-        elif content_type == 'css':
-            response += "Content-type: text/css\n\n"
-        elif content_type == 'jpeg':
-            response += "Content-type: image/jpeg\n\n"
-        elif content_type == 'jpg':
-            response += "Content-type: image/jpg\n\n"
-        elif content_type == 'png':
-            response += "Content-type: image/png\n\n"
+        try:
+            response += "Content-type: " + Content_Type[content_type.lower()] + "\n\n"
+        except KeyError:
+            print "Content Type %r Not defined" %content_type
+
         response += content + "\n\n"
 
         return response
+
+def do_POST(request):
+        length = int(request['Content-Length'])
+	path = request['path']
+        content = urlparse.parse_qs(request['content'])
+        try:
+		content, content_type = Landing[path](content)
+		if content:
+        	        response = gen_header(200)
+	        else:
+               		response = gen_header(404)
+                	return response
+        	try:
+            		response += "Content-type: " + Content_Type[content_type.lower()] + "\n\n"
+        	except KeyError:
+            		print "Content Type %r Not defined" %content_type
+
+        	response += content + "\n\n"
+        	return response
+
+	except:
+		pass
+	raise KeyboardInterrupt
 
 
 '''
@@ -115,8 +146,18 @@ Routes = {"/": index,
           "/index": index,
           "/login": login,}
 
-Methods = {
-        'GET': do_GET}
+Landing = {"/login_submit" : login_submit,}
+Methods = {'GET': do_GET,
+	   'POST': do_POST,}
+
+Content_Type = {'html': 'text/html',
+		'css' : 'text/css',
+		'js'  : 'application/javascript',
+		'jpeg': 'image/jpeg',
+                'jpg' : 'image/jpg',
+                'png' : 'image/png',
+		'gif' : 'image/gif',
+		}
 
 '''
 ********************************************************************************
@@ -124,14 +165,17 @@ main
 '''
 
 if __name__ == "__main__":
+    try:
 	sock = start_server("127.0.0.1", 8080)
 	sock.listen(2)
 	while True:
 		client, request = accept_connection(sock)
-		request = request_parser(request)
-                pprint(request)
-                response = Methods[request['method']](request)
-                print "Sending response"
-                client.send(response)
-                client.close() 
-                
+	   	if request:
+			request = request_parser(request)
+                	response = Methods[request['method']](request)
+                	print "Sending response"
+                	client.send(response)
+                	client.close() 
+    except KeyboardInterrupt:
+	pass
+            
