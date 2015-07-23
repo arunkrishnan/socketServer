@@ -51,9 +51,6 @@ def public(path):
 Server and socket functions
 '''
 def start_server(hostname, port):
-	""" 
-	Socket creation
-	"""
 	sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 	sock.bind((hostname, port))
 	print "server started at port:", port
@@ -92,7 +89,6 @@ def request_parser(message):
     try:
         request['body'] = message.rsplit('\n')[-1]
     except IndexError:
-        print "No Body Part in the request"
         pass
     return request
 
@@ -106,15 +102,13 @@ def response_stringify(response):
         response_string += response['content'] + '\n\n'
     return response_string
 
+
 '''
 *******************************************************
 Handler Functions
 '''
 def request_handler(message, response):
-    print "Reached Request Handler"
     request = request_parser(message)
-    print "Got request"
-    print request
     method_handler(request, response)
 
 def method_handler(request, response):
@@ -143,7 +137,6 @@ def get_handler(request, response):
 
 
 def post_handler(request, response):
-    #length = int(request['Content_Length'])
     path = request['path']
     content = urlparse.parse_qs(request['body']) 
     try:
@@ -215,25 +208,16 @@ main
 
 if __name__ == "__main__":
     try:
-        port = 8081
+        port = 8080
         os.system('fuser -k ' + str(port) + '/tcp')
         sock = start_server("127.0.0.1", port)
         sock.listen(2)
         while True:
-            print "while True"
             client_socket, message = accept_connection(sock)
-            print "In main"
-            print "Message:"
-            print message
             response = {}
 	    if message:
 	        request_handler(message, response)
-                #print "Response:"
-                #print response
-                print "Sending response"
                 response_string = response_stringify(response)
-                #print "Response String:"
-                #print response_string
                 client_socket.send(response_string)
             client_socket.close() 
     except KeyboardInterrupt:
