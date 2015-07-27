@@ -2,25 +2,33 @@ import socket
 import urlparse
 import time
 
-ROUTES = {
-           'get'  : {},
-           'post' : {}
-         }
+ROUTES =  {
+            'get'  : {},
+            'post' : {}
+          }
+          
 
 def start_server(hostname, port):
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     sock.bind((hostname, port))
     print "server started at port:", port
-    return sock
+    try:
+        sock.listen(1000)
+        while True:
+            client_socket, message = accept_connection(sock)
+            request_handler(client_socket,message)
+    except KeyboardInterrupt:
+        print "Bye Bye"
+        sock.close()
 
 
 def accept_connection(sock):
-    (client,(ip,port)) = sock.accept()
+    (client_socket,(ip,port)) = sock.accept()
     print "connection request from client:", ip
-    data = client.recv(1024)
-    return client, bytes.decode(data)
-
-
+    data = client_socket.recv(1024)
+    return client_socket, bytes.decode(data)
+    
+	
 def static_file_handler(path):
     try:
     	with open('./public' + path,'r') as fd:
@@ -33,10 +41,6 @@ def routes(method,path,func):
     ROUTES[method][path] = func
 
 
-'''
-****************************************************
-Parser Functions
-'''
 def header_parser(message):
     header={}
     for each_line in message:
@@ -57,6 +61,7 @@ def request_parser(message):
     request['body']     = body
     return request
 
+
 def response_stringify(response):
     response_string = response['status'] + '\r\n'
     keys = [key for key in response if key not in ['status','content']]
@@ -68,10 +73,6 @@ def response_stringify(response):
     return response_string
 
 
-'''
-*******************************************************
-Handler Functions
-'''
 def request_handler(client_socket,message):
     response = {}
     request  = request_parser(message)
@@ -98,6 +99,7 @@ def get_handler(request,response):
     finally:
         generate_response(content, content_type, response)
 
+
 def post_handler(request,response):
     try:
         content =  urlparse.parse_qs(request['body']) 
@@ -106,6 +108,7 @@ def post_handler(request,response):
         print "Landing Not defined"
     finally:
         generate_response(content, content_type,response)
+
 
 def head_handler(request, response):
     pass
@@ -117,6 +120,7 @@ def file_handler(request, response):
 
 def delete_handler(request, response):
     pass
+
 
 def generate_response(content,content_type, response):
     if content:
@@ -133,10 +137,6 @@ def generate_response(content,content_type, response):
     response['Server']     = 'geekskool_magic_server'
 
 
-'''
-*******************************************************************************
-Hash Tables
-'''
 METHOD  =      {
                  'GET'           : get_handler,
 	         'POST'          : post_handler,
