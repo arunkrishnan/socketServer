@@ -1,12 +1,21 @@
 import socket
 import urlparse
 import time
+import jsonParser
 
-ROUTES =  {
+routes =  {
             'get'  : {},
             'post' : {}
           }
           
+def add_route(method,path,func):
+    routes[method][path] = func
+
+
+'''
+*********************************************************************
+Server Functions
+'''
 
 def start_server(hostname, port):
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -16,7 +25,8 @@ def start_server(hostname, port):
         sock.listen(1000)
         while True:
             client_socket, message = accept_connection(sock)
-            request_handler(client_socket,message)
+            if message:
+                request_handler(client_socket,message)
     except KeyboardInterrupt:
         print "Bye Bye"
         sock.close()
@@ -26,19 +36,33 @@ def accept_connection(sock):
     (client_socket,(ip,port)) = sock.accept()
     print "connection request from client:", ip
     data = client_socket.recv(1024)
-    return client_socket, bytes.decode(data)
+    return client_socket, data
     
-	
-def static_file_handler(path):
+
+'''
+*********************************************************************
+Parsers
+'''
+def request_parser(message):
+    request = {}
     try:
-    	with open('./public' + path,'r') as fd:
-    	    return (fd.read(), path.split('.')[-1].lower())
-    except IOError:
-    	return '',''
-
-
-def routes(method,path,func):
-    ROUTES[method][path] = func
+        header,body = message.split('\r\n\r\n')
+    except IndexError and ValueError:
+        header = message.split('\r\n\r\n')[0]
+        body = ""
+    '''
+    except IndexError:
+        header = message.split('\r\n\r\n')[0]
+        body = ""
+    '''
+    header = header.split('\r\n')
+    first = header.pop(0)
+    request["method"]   = first.split()[0]
+    request["path"]     = first.split()[1]
+    request["protocol"] = first.split()[2]
+    request['header']   = header_parser(header)
+    request['body']     = body
+    return request
 
 
 def header_parser(message):
@@ -49,18 +73,10 @@ def header_parser(message):
     return header
 
 
-def request_parser(message):
-    request = {}
-    header,body = message.split("\r\n\r\n")
-    header = header.split('\r\n')
-    first = header.pop(0)
-    request["method"]   = first.split()[0]
-    request["path"]     = first.split()[1]
-    request["protocol"] = first.split()[2]
-    request['header']   = header_parser(header)
-    request['body']     = body
-    return request
-
+'''
+*********************************************************************
+Stringify
+'''
 
 def response_stringify(response):
     response_string = response['status'] + '\r\n'
@@ -72,43 +88,50 @@ def response_stringify(response):
         response_string += response['content'] + '\r\n\r\n'
     return response_string
 
+'''
+*********************************************************************
+Handler Functions
+'''
 
 def request_handler(client_socket,message):
-    response = {}
-    request  = request_parser(message)
+    response          = {}
+    request           = request_parser(message)
+    request['socket'] = client_socket
+#    cookie_handler(request, response)
     method_handler(request,response)
-    response_handler(client_socket, response)
+    response_handler(request, response)
 
 
-def response_handler(client_socket, response):
-    response_string = response_stringify(response)
-    client_socket.send(response_string)
-    client_socket.close()
+def cookie_handler(request, response):
+    head, current_cookie   = request['header']['Cookie'].split("=",1)
+    cookies                = jsonParser.parser('cookies.json')
 
 
 def method_handler(request,response):
     handler = METHOD[request['method']]
     handler(request,response)
-
+    
 
 def get_handler(request,response):
     try:
-        content, content_type = ROUTES['get'][request['path']]()
+        content, content_type    = routes['get'][request['path']]()
+        response['status']       = "HTTP/1.1 200 OK"
+        response['content']      = content
+        response['Content-type'] = CONTENT_TYPE[content_type]
     except KeyError:
-        content, content_type = static_file_handler(request['path'])
-    finally:
-        generate_response(content, content_type, response)
-
+        static_file_handler(request,response)
+    
 
 def post_handler(request,response):
     try:
         content =  urlparse.parse_qs(request['body']) 
-        content, content_type = ROUTES['post'][request['path']](content)
+        content, content_type = routes['post'][request['path']](content)
+        response['status']       = "HTTP/1.1 200 OK"
+        response['content']      = content
+        response['Content-type'] = CONTENT_TYPE[content_type]
     except KeyError:
         print "Landing Not defined"
-    finally:
-        generate_response(content, content_type,response)
-
+    
 
 def head_handler(request, response):
     pass
@@ -116,25 +139,36 @@ def head_handler(request, response):
 
 def file_handler(request, response):
     pass
-
+	
 
 def delete_handler(request, response):
     pass
 
 
-def generate_response(content,content_type, response):
-    if content:
-        response['status']= "HTTP/1.1 200 OK"
-        try:
-            response['Content-type'] = CONTENT_TYPE[content_type]
-            response['content']      = content
-        except KeyError:
-            print "Content Type %r Not defined" %content_type
-    else:
-        response['status'] = "HTTP/1.1 404 Not Found"
+def static_file_handler(request, response):
+    try:
+        with open('./public' + request['path'],'r') as fd:
+            response['content'] = fd.read() 
+        content_type             = request['path'].split('.')[-1].lower()
+        response['Content-type'] = CONTENT_TYPE[content_type]
+        response['status']       = "HTTP/1.1 200 OK"
+    except IOError:
+        err_404_handler(request,response)
+
+
+def err_404_handler(request, response):
+    response['status'] = "HTTP/1.1 404 Not Found"
+    
+
+def response_handler(request, response):
     response['Date']       = time.strftime("%a, %d %b %Y %H:%M:%S", time.localtime())
     response['Connection'] = 'close'
     response['Server']     = 'geekskool_magic_server'
+    response_string         = response_stringify(response)
+    request['socket'].send(response_string)
+    request['socket'].close()
+
+    
 
 
 METHOD  =      {

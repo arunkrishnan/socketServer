@@ -33,13 +33,12 @@ def login_submit(content):
         return '',''
 
 def build_routes():
-    server.routes('get','/', home)
-    server.routes('get','/index',home)
-    server.routes('get','/login',login)
-    server.routes('post','/login_submit', login_submit)
+    server.add_route('get','/', home)
+    server.add_route('get','/login',login)
+    server.add_route('post','/login_submit', login_submit)
 
     
 if __name__ == "__main__":
-    port = 8080
+    port = 8081
     build_routes()
     sock = server.start_server("127.0.0.1", port)
