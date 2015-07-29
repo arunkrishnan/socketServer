@@ -2,7 +2,11 @@ import socket
 import urlparse
 import time
 import jsonParser
+from uuid import uuid1
+import json
+from pprint import pprint
 
+cookies = {}
 routes =  {
             'get'  : {},
             'post' : {}
@@ -50,11 +54,6 @@ def request_parser(message):
     except IndexError and ValueError:
         header = message.split('\r\n\r\n')[0]
         body = ""
-    '''
-    except IndexError:
-        header = message.split('\r\n\r\n')[0]
-        body = ""
-    '''
     header = header.split('\r\n')
     first = header.pop(0)
     request["method"]   = first.split()[0]
@@ -70,6 +69,12 @@ def header_parser(message):
     for each_line in message:
         key, value = each_line.split(": ",1)
         header[key] = value
+    cookies  = header['Cookie'].split(";")
+    client_cookies = {}
+    for cookie in cookies:
+        head,body = cookie.strip().split('=',1)
+        client_cookies[head] = body
+    header['Cookie'] = client_cookies
     return header
 
 
@@ -97,14 +102,19 @@ def request_handler(client_socket,message):
     response          = {}
     request           = request_parser(message)
     request['socket'] = client_socket
-#    cookie_handler(request, response)
+    cookie_handler(request, response)
+    pprint(request)
     method_handler(request,response)
     response_handler(request, response)
 
 
 def cookie_handler(request, response):
-    head, current_cookie   = request['header']['Cookie'].split("=",1)
-    cookies                = jsonParser.parser('cookies.json')
+    browser_cookies = request['header']['Cookie']
+    if 'sid' in browser_cookies and browser_cookies['sid'] in cookies:
+        return
+    cookie                 = str(uuid1())
+    response['Set-Cookie'] = 'sid=' + cookie
+    cookies[cookie]        = {}
 
 
 def method_handler(request,response):
@@ -148,7 +158,7 @@ def delete_handler(request, response):
 def static_file_handler(request, response):
     try:
         with open('./public' + request['path'],'r') as fd:
-            response['content'] = fd.read() 
+            response['content']  = fd.read() 
         content_type             = request['path'].split('.')[-1].lower()
         response['Content-type'] = CONTENT_TYPE[content_type]
         response['status']       = "HTTP/1.1 200 OK"
