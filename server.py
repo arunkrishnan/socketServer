@@ -69,12 +69,15 @@ def header_parser(message):
     for each_line in message:
         key, value = each_line.split(": ",1)
         header[key] = value
-    cookies  = header['Cookie'].split(";")
-    client_cookies = {}
-    for cookie in cookies:
-        head,body = cookie.strip().split('=',1)
-        client_cookies[head] = body
-    header['Cookie'] = client_cookies
+    try:
+        cookies  = header['Cookie'].split(";")
+        client_cookies = {}
+        for cookie in cookies:
+            head,body = cookie.strip().split('=',1)
+            client_cookies[head] = body
+        header['Cookie'] = client_cookies
+    except KeyError:
+        header['Cookie'] = ""
     return header
 
 
@@ -102,11 +105,12 @@ def request_handler(client_socket,message):
     response          = {}
     request           = request_parser(message)
     request['socket'] = client_socket
-    cookie_handler(request, response)
     pprint(request)
+    cookie_handler(request, response)
     method_handler(request,response)
+    pprint(response)
     response_handler(request, response)
-
+    
 
 def cookie_handler(request, response):
     browser_cookies = request['header']['Cookie']
@@ -133,15 +137,16 @@ def get_handler(request,response):
     
 
 def post_handler(request,response):
-    try:
-        content =  urlparse.parse_qs(request['body']) 
-        content, content_type = routes['post'][request['path']](content)
+    if True:
+        content                  = urlparse.parse_qs(request['body'])
+        content, content_type    = routes['post'][request['path']](content)
         response['status']       = "HTTP/1.1 200 OK"
         response['content']      = content
         response['Content-type'] = CONTENT_TYPE[content_type]
+    '''
     except KeyError:
         print "Landing Not defined"
-    
+    '''
 
 def head_handler(request, response):
     pass
@@ -174,10 +179,9 @@ def response_handler(request, response):
     response['Date']       = time.strftime("%a, %d %b %Y %H:%M:%S", time.localtime())
     response['Connection'] = 'close'
     response['Server']     = 'geekskool_magic_server'
-    response_string         = response_stringify(response)
+    response_string        = response_stringify(response)
     request['socket'].send(response_string)
     request['socket'].close()
-
     
 
 

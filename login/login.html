@@ -1,26 +1,44 @@
-<!DOCTYPE html>
 <html>
 <head>
-	<title>pyBlog</title>
-	<link rel="stylesheet" href="css/normalize.css">
-	<link rel="stylesheet" href="css/style.css">
+  <script src="https://code.jquery.com/jquery-2.1.4.min.js"></script>
+  <script id="sdk-js" src="https://cdn.digits.com/1/sdk.js" async></script>
+  
 </head>
 <body>
-	<section class="loginform cf">
-		<form name="login" action="login_submit" method="post" accept-charset="utf-8">
-			<ul>
-				<li>
-					<label for="usermail">Email</label>
-					<input type="email" name="usermail" placeholder="mailid@example.com" required>
-				</li>
-				<li>
-					<label for="password">Password</label>
-					<input type="password" name="password" placeholder="password" required></li>
-				<li>
-					<input type="submit" value="Login">
-				</li>
-			</ul>
-		</form>
-	</section>
+
+
+<script>   
+  /* Launch the Login to Digits flow. */
+document.getElementById('sdk-js').onload = function() {
+  Digits.init({ consumerKey: 'MYFeeLrod8xbnfFeQLKhVWs7E' });
+     };  
+  
+function onLoginButtonClick(event){
+  Digits.logIn()
+    .done(onLogin) /*handle the response*/
+    .fail(onLoginFailure);
+}
+function onLogin(loginResponse){
+  // Send headers to your server and validate user by calling Digits’ API
+  var oAuthHeaders = loginResponse.oauth_echo_headers;
+  var verifyData = {
+    authHeader: oAuthHeaders['X-Verify-Credentials-Authorization'],
+    apiUrl: oAuthHeaders['X-Auth-Service-Provider']
+  };
+
+  $.post('/verify', verifyData)
+    .done(function(res){ if res=='success' window.location = '/'; else: 'failure'});
+}
+
+function onLoginFailure(loginResponse){
+  console.log(loginResponse);
+}
+</script>
+
+
+
+   <button id="digits-sdk" onclick="onLoginButtonClick()">Click me</button>
+
+
 </body>
 </html>
