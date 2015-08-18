@@ -202,6 +202,8 @@ CONTENT_TYPE = {
                  'png'           : 'image/png',
 		 'gif'           : 'image/gif',
                  'ico'           : 'image/x-icon',
+                 'text'          : 'text/plain',
+                 'json'          : 'application/json',
 	       }
 
 

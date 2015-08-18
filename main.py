@@ -1,6 +1,7 @@
 import server
 import requests
 import ast
+import json
 
 def home():
     try:
@@ -24,19 +25,8 @@ def verify(content):
     data        = requests.get(url, headers=header).text
     data_dict   = ast.literal_eval(data)
     phone_num   = data_dict['phone_number']
-    '''
-        Need to check phone number in db and load home page
-    '''
-    temp_response = '''\
-       <html>
-       <head></head>
-       <body>
-       Hi '''
-    temp_response += phone_num
-    temp_response += '''\
-       </body>
-       </html>'''
-    return temp_response, 'html'
+    print phone_num
+    return json.dumps({'status':'success'}),'json'
     
 
 def verify_login(usermail, password):

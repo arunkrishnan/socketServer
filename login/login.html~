@@ -29,7 +29,7 @@
     	.done(function(res){
     		console.log(res)
     		
-			var obj = res;
+			var obj = JSON.parse(res);
 
     		 if (obj.status=='success'){
     		 	window.location = '/';
