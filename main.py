@@ -55,4 +55,4 @@ def build_routes():
 if __name__ == "__main__":
     port = int(raw_input("PORT>")) 
     build_routes()
-    sock = server.start_server("127.0.0.1", port)
+    server.start_server("127.0.0.1", port)
