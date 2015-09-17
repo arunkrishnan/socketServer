@@ -1,6 +1,5 @@
 import socket
 from http_handler import *
-import urlparse
 import time
 from uuid import uuid1
 from pprint import pprint
@@ -44,14 +43,23 @@ def start_server(hostname, port):
 
 
 def accept_connection(sock):
-    buff = ""
+    data = ""
     (client_socket,(ip,port)) = sock.accept()
     print "connection request from client:", ip
     while True:
-        data = client_socket.recv(64)
-        buff += data
-        if '\r\n\r\n' == buff[-4:] or not data:
-            return client_socket, buff
+        buff = client_socket.recv(2048)
+        if not buff:
+            break
+        data += buff
+        if '\r\n\r\n' in data and 'Content-Length' in data:
+            header, body   = buff.split('\r\n\r\n')
+            line = [i.strip() for i in header.split('\n') if 'Content-Length' in i]
+            content_length = int(line[0].split(':')[1].strip())
+            if len(body) == content_length:
+                break
+        if '\r\n\r\n' == data[-4:]:
+            break
+    return client_socket, data
     
 
 '''
