@@ -1,3 +1,5 @@
+import urlparse
+
 routes =  {
             'get'  : {},
             'post' : {}
