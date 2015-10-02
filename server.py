@@ -51,16 +51,26 @@ def accept_connection(sock):
         if not buff:
             break
         data += buff
-        if '\r\n\r\n' in data and 'Content-Length' in data:
-            header, body   = buff.split('\r\n\r\n')
-            line = [i.strip() for i in header.split('\n') if 'Content-Length' in i]
-            content_length = int(line[0].split(':')[1].strip())
-            if len(body) == content_length:
-                break
-        if '\r\n\r\n' == data[-4:]:
+        if isValidHTTP(data):
             break
     return client_socket, data
     
+
+def isValidHTTP(data):
+    if '\r\n\r\n' in data:
+        try:
+            head, body = data.split('\r\n\r\n')
+            header = head.strip().split('\r\n')
+            header = header_parser(header[1:])
+            if header.has_key('Content-Length'):
+                content_length = int(header['Content-Length'])
+                if content_length == len(body):
+                    return True
+            else:
+                return True
+        except ValueError:
+            return False
+
 
 '''
 *********************************************************************
